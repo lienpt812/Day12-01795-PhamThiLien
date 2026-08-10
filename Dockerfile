@@ -21,14 +21,32 @@
 #            docker images day12-agent:prod     # xem dung lượng
 # ═══════════════════════════════════════════════════════════════════
 
-FROM python:3.11
+FROM public.ecr.aws/docker/library/python:3.11-slim AS builder
 
 WORKDIR /app
 
-COPY . .
+COPY requirements.txt .
 
-RUN pip install -r requirements.txt
+RUN pip install --prefix=/install --no-cache-dir -r requirements.txt
+
+FROM public.ecr.aws/docker/library/python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+COPY app ./app
+COPY utils ./utils
+
+RUN useradd --create-home --shell /usr/sbin/nologin appuser
+
+USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD python -c "import os, urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.getenv(\"PORT\", \"8000\")}/health', timeout=3)"
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
