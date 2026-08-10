@@ -1,101 +1,103 @@
-# Thông Tin Deploy — Checkpoint 5
+# Thong Tin Deploy - Checkpoint 5
 
-> Điền file này sau khi deploy xong. `pytest tests/test_cp5.py` đọc file này
-> để tìm địa chỉ service của bạn và gọi thử.
->
-> **Chỉ ghi TÊN biến môi trường, tuyệt đối không dán giá trị API key vào đây.**
-> Repo này công khai — dán khóa vào là mất khóa.
+File nay ghi lai cach kiem tra ban deploy cua bai lab. Khong ghi gia tri that cua `AGENT_API_KEY` vao repo.
 
-## Thông Tin Học Viên
+## Thong Tin Hoc Vien
 
-| Mục | Nội dung |
+| Muc | Noi dung |
 |-----|----------|
-| Họ và tên | (điền họ tên) |
-| Mã học viên | (điền mã học viên) |
-| Repo | (điền link repo DAY12-...) |
+| Ho va ten | Pham Thi Lien |
+| Mã học viên | 01795 |
+| Repo | https://github.com/lienpt812/Day12-01795-PhamThiLien |
 
 ## Service
 
-| Mục | Nội dung |
+| Muc | Noi dung |
 |-----|----------|
-| Public URL | https://TODO-thay-bang-url-that.up.railway.app |
-| Platform | Railway / Render / Cloud Run — (điền platform bạn dùng) |
-| Ngày deploy | (điền ngày) |
+| Public URL | https://day12-01795-phamthilien-production.up.railway.app |
+| Platform | Railway |
+| Ngay deploy | 2026-08-10 |
 
-## Biến Môi Trường Đã Set Trên Cloud
+## Bien Moi Truong Da Set
 
-Ghi tên biến và **nguồn giá trị**, không ghi giá trị:
+Chi liet ke ten bien va nguon gia tri, khong ghi secret that.
 
-| Biến | Đã set | Ghi chú |
+| Bien | Da set | Ghi chu |
 |------|--------|---------|
-| `PORT` | ✅ | platform tự gán |
-| `AGENT_API_KEY` | ✅ | đặt trong dashboard, không nằm trong repo |
-| `REDIS_URL` | ✅ | (điền: Redis add-on của platform / Upstash / ...) |
-| `RATE_LIMIT_PER_MINUTE` | ✅ | 10 |
-| `MONTHLY_BUDGET_USD` | ✅ | 10.0 |
-| `LOG_LEVEL` | ✅ | INFO |
+| `PORT` | yes | Railway tu gan |
+| `AGENT_API_KEY` | yes | Dat trong Railway dashboard, khong nam trong repo |
+| `REDIS_URL` | yes | Railway Redis service variable, khong dung localhost |
+| `RATE_LIMIT_PER_MINUTE` | yes | 10 |
+| `MONTHLY_BUDGET_USD` | yes | 10.0 |
+| `LOG_LEVEL` | yes | INFO |
 
-## Lệnh Kiểm Tra
+## Lenh Kiem Tra Local Fallback
 
-Thay `<URL>` bằng Public URL ở trên:
+Stack local da duoc chay bang:
 
-```bash
-# 1. Liveness — mong đợi 200 {"status":"ok"}
-curl -i <URL>/health
-
-# 2. Readiness — mong đợi 200 {"status":"ready"} (đã nối được Redis)
-curl -i <URL>/ready
-
-# 3. Không có API key — mong đợi 401
-curl -i -X POST <URL>/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question":"Hello"}'
-
-# 4. Có API key — mong đợi 200 kèm câu trả lời
-curl -i -X POST <URL>/ask \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $AGENT_API_KEY" \
-  -H "X-User-Id: sv-test" \
-  -d '{"question":"Deploy là gì?"}'
-
-# 5. Rate limit — gọi 15 lần, những lần cuối phải trả 429
-for i in $(seq 1 15); do
-  curl -s -o /dev/null -w "%{http_code} " -X POST <URL>/ask \
-    -H "Content-Type: application/json" \
-    -H "X-API-Key: $AGENT_API_KEY" \
-    -H "X-User-Id: sv-test" \
-    -d '{"question":"test"}'
-done; echo
+```powershell
+docker compose up -d --build
+docker compose ps
 ```
 
-## Kết Quả Chạy Thật
+Ket qua mong doi:
 
-Dán output của các lệnh trên vào đây:
-
+```text
+agent: Up, healthy, port 8000
+redis: Up, healthy, port 6379
 ```
-(điền output)
+
+Kiem tra API:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:8000/health
+Invoke-RestMethod -Uri http://localhost:8000/ready
+try {
+  Invoke-WebRequest -Uri http://localhost:8000/ask -Method POST -ContentType 'application/json' -Body '{"question":"Hello"}'
+} catch {
+  $_.Exception.Response.StatusCode.value__
+}
 ```
 
-## Ảnh Chụp Màn Hình
+Ket qua da quan sat:
 
-Đặt ảnh trong thư mục `screenshots/`:
-
-- `screenshots/dashboard.png` — trang quản lý service trên platform
-- `screenshots/health.png` — kết quả gọi `/health` từ trình duyệt hoặc curl
-
----
-
-## Nếu Dùng Phương Án Dự Phòng
-
-Không đăng ký được tài khoản cloud? Vẫn nộp được bài, nhưng CP5 tối đa 60% điểm:
-
-1. Đặt `LOCAL_FALLBACK=true` trong `.env`
-2. Chạy `docker compose up -d` rồi kiểm tra `docker compose ps`
-3. Chụp màn hình vào `screenshots/`
-4. Chạy `pytest tests/test_cp5.py -v` — bộ test sẽ tự chuyển sang kiểm tra
-   `http://localhost:8000`
-5. Ghi rõ lý do không deploy được vào phần dưới đây:
-
+```text
+/health -> 200, {"status":"ok","service":"day12-agent","version":"1.0.0"}
+/ready  -> 200, {"status":"ready","redis":true}
+/ask without API key -> 401
 ```
-(điền lý do nếu dùng phương án dự phòng, ngược lại xóa mục này)
+
+## Anh Chung Minh
+
+Anh can dat trong thu muc `screenshots/`:
+
+- `screenshots/dashboard.png` hoac `screenshots/docker-compose.png`: trang dashboard cloud hoac terminal `docker compose ps`
+- `screenshots/health.png`: ket qua goi `/health` tu browser/curl/PowerShell
+
+## Cau Hinh Cloud Can Lam De Dat CP5 Full
+
+Neu deploy that len Railway hoac Render, thay dong Public URL ben tren bang URL HTTPS that cua service. Khong de URL mau trong file vi test se tu dong bat URL HTTPS dau tien.
+
+Can set cac bien moi truong tren dashboard cloud:
+
+```text
+AGENT_API_KEY=<secret rieng cua ban>
+REDIS_URL=<connection string Redis cua platform>
+RATE_LIMIT_PER_MINUTE=10
+MONTHLY_BUDGET_USD=10.0
+LOG_LEVEL=INFO
+```
+
+Khong can set `PORT` neu platform tu cap bien nay. Neu platform khong tu cap, set `PORT=8000`.
+
+Sau khi co Public URL, chay:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_cp5.py -q
+```
+
+Neu muon test them `/ask` tren ban deploy that, set rieng trong `.env` local:
+
+```text
+DEPLOY_API_KEY=<cung gia tri voi AGENT_API_KEY tren cloud>
 ```
